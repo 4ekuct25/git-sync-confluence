@@ -1,0 +1,245 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.gitlab.sync</groupId>
+    <artifactId>git-sync-confluence</artifactId>
+    <version>1.0.0</version>
+    <packaging>bundle</packaging>
+
+    <name>Git-Sync Confluence Plugin</name>
+    <description>Live-renders GitLab markdown documentation on Confluence pages</description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <maven.compiler.source>17</maven.compiler.source>
+        <maven.compiler.target>17</maven.compiler.target>
+        <confluence.version>8.5.0</confluence.version>
+    </properties>
+
+    <repositories>
+        <repository>
+            <id>atlassian-public</id>
+            <url>https://maven.atlassian.com/repository/public</url>
+        </repository>
+        <repository>
+            <id>central</id>
+            <url>https://repo1.maven.org/maven2</url>
+        </repository>
+    </repositories>
+
+    <dependencies>
+        <!--
+            Local stubs for Confluence 8.5 APIs that are not published in a
+            compile-friendly form (Confluence's own jars, SAL, plus a minimal
+            javax.ws.rs shim for the two legacy-flavoured resources).
+            The stub jar carries the real jakarta.ws.rs / jakarta.annotation /
+            jakarta.inject APIs as transitive provided deps.
+        -->
+        <dependency>
+            <groupId>com.atlassian.confluence</groupId>
+            <artifactId>confluence-api-stubs</artifactId>
+            <version>8.5.0</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- JAX-RS API (Confluence 8.5 runs on Jakarta EE 10 / Tomcat 10.1) -->
+        <dependency>
+            <groupId>jakarta.ws.rs</groupId>
+            <artifactId>jakarta.ws.rs-api</artifactId>
+            <version>3.1.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.inject</groupId>
+            <artifactId>jakarta.inject-api</artifactId>
+            <version>2.0.1</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>jakarta.annotation</groupId>
+            <artifactId>jakarta.annotation-api</artifactId>
+            <version>2.1.1</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- Flexmark: Markdown parsing (BSD 2-Clause) — core + the extensions
+             actually referenced (flexmark-all is an empty aggregator that drags
+             in pdfbox/icu4j/openhtmltopdf we do not need) -->
+        <dependency>
+            <groupId>com.vladsch.flexmark</groupId>
+            <artifactId>flexmark</artifactId>
+            <version>0.64.8</version>
+        </dependency>
+        <dependency>
+            <groupId>com.vladsch.flexmark</groupId>
+            <artifactId>flexmark-ext-abbreviation</artifactId>
+            <version>0.64.8</version>
+        </dependency>
+        <!-- Emoji shortcodes (":rocket:") — FR05 «эмодзи» in the markdown coverage.
+             The artifact is flexmark-ext-emoji (NOT flexmark-emoji): it carries
+             the EmojiExtension + Emoji AST node used by the converter. Its
+             transitive flexmark-jira-converter drags in wikilink/ins — already
+             in the local m2, so the offline build resolves. -->
+        <dependency>
+            <groupId>com.vladsch.flexmark</groupId>
+            <artifactId>flexmark-ext-emoji</artifactId>
+            <version>0.64.8</version>
+        </dependency>
+        <dependency>
+            <groupId>com.vladsch.flexmark</groupId>
+            <artifactId>flexmark-ext-footnotes</artifactId>
+            <version>0.64.8</version>
+        </dependency>
+        <dependency>
+            <groupId>com.vladsch.flexmark</groupId>
+            <artifactId>flexmark-ext-gfm-strikethrough</artifactId>
+            <version>0.64.8</version>
+        </dependency>
+        <dependency>
+            <groupId>com.vladsch.flexmark</groupId>
+            <artifactId>flexmark-ext-gfm-tasklist</artifactId>
+            <version>0.64.8</version>
+        </dependency>
+        <dependency>
+            <groupId>com.vladsch.flexmark</groupId>
+            <artifactId>flexmark-ext-tables</artifactId>
+            <version>0.64.8</version>
+        </dependency>
+        <dependency>
+            <groupId>com.vladsch.flexmark</groupId>
+            <artifactId>flexmark-ext-toc</artifactId>
+            <version>0.64.8</version>
+        </dependency>
+
+        <!-- Jsoup: HTML sanitization (MIT) -->
+        <dependency>
+            <groupId>org.jsoup</groupId>
+            <artifactId>jsoup</artifactId>
+            <version>1.17.2</version>
+        </dependency>
+
+        <!-- Jackson for JSON (Apache 2.0) -->
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-databind</artifactId>
+            <version>2.17.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-core</artifactId>
+            <version>2.17.0</version>
+        </dependency>
+        <dependency>
+            <groupId>com.fasterxml.jackson.core</groupId>
+            <artifactId>jackson-annotations</artifactId>
+            <version>2.17.0</version>
+        </dependency>
+
+        <!-- SLF4J (provided by Confluence) -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+            <version>1.7.36</version>
+            <scope>provided</scope>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>3.12.1</version>
+                <configuration>
+                    <source>17</source>
+                    <target>17</target>
+                </configuration>
+            </plugin>
+
+            <!-- Stage runtime dependencies inside the bundle (OSGi runtime has
+                 no jackson2/jsoup/flexmark exporters; mirror rest-resources pattern) -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>3.7.0</version>
+                <executions>
+                    <execution>
+                        <id>stage-bundle-libs</id>
+                        <phase>process-classes</phase>
+                        <goals><goal>copy-dependencies</goal></goals>
+                        <configuration>
+                            <outputDirectory>${project.build.outputDirectory}/META-INF/lib</outputDirectory>
+                            <includeScope>runtime</includeScope>
+                            <stripVersion>false</stripVersion>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- OSGi Bundle -->
+            <plugin>
+                <groupId>org.apache.felix</groupId>
+                <artifactId>maven-bundle-plugin</artifactId>
+                <version>5.1.9</version>
+                <extensions>true</extensions>
+                <configuration>
+                    <instructions>
+                        <Bundle-SymbolicName>com.gitlab.sync.confluence</Bundle-SymbolicName>
+                <Atlassian-Plugin-Key>com.gitlab.sync.git-sync-confluence</Atlassian-Plugin-Key>
+                        <Spring-Context>META-INF/spring/plugin-context.xml</Spring-Context>
+                <Atlassian-Plugin-Version>${project.version}</Atlassian-Plugin-Version>
+                        <Bundle-Version>1.0.0</Bundle-Version>
+                        <Bundle-Activator>com.gitlab.sync.confluence.BundleContextHolder</Bundle-Activator>
+                        <Bundle-Name>Git-Sync Confluence Plugin</Bundle-Name>
+                        <Bundle-ClassPath>.,META-INF/lib/annotations-24.0.1.jar,META-INF/lib/autolink-0.6.0.jar,META-INF/lib/byte-buddy-1.14.9.jar,META-INF/lib/flexmark-0.64.8.jar,META-INF/lib/flexmark-ext-abbreviation-0.64.8.jar,META-INF/lib/flexmark-ext-autolink-0.64.8.jar,META-INF/lib/flexmark-ext-emoji-0.64.8.jar,META-INF/lib/flexmark-ext-footnotes-0.64.8.jar,META-INF/lib/flexmark-ext-gfm-strikethrough-0.64.8.jar,META-INF/lib/flexmark-ext-gfm-tasklist-0.64.8.jar,META-INF/lib/flexmark-ext-ins-0.64.8.jar,META-INF/lib/flexmark-ext-superscript-0.64.8.jar,META-INF/lib/flexmark-ext-tables-0.64.8.jar,META-INF/lib/flexmark-ext-toc-0.64.8.jar,META-INF/lib/flexmark-ext-wikilink-0.64.8.jar,META-INF/lib/flexmark-jira-converter-0.64.8.jar,META-INF/lib/flexmark-util-0.64.8.jar,META-INF/lib/flexmark-util-ast-0.64.8.jar,META-INF/lib/flexmark-util-builder-0.64.8.jar,META-INF/lib/flexmark-util-collection-0.64.8.jar,META-INF/lib/flexmark-util-data-0.64.8.jar,META-INF/lib/flexmark-util-dependency-0.64.8.jar,META-INF/lib/flexmark-util-format-0.64.8.jar,META-INF/lib/flexmark-util-html-0.64.8.jar,META-INF/lib/flexmark-util-misc-0.64.8.jar,META-INF/lib/flexmark-util-options-0.64.8.jar,META-INF/lib/flexmark-util-sequence-0.64.8.jar,META-INF/lib/flexmark-util-visitor-0.64.8.jar,META-INF/lib/jackson-annotations-2.17.0.jar,META-INF/lib/jackson-core-2.17.0.jar,META-INF/lib/jackson-databind-2.17.0.jar,META-INF/lib/jsoup-1.17.2.jar</Bundle-ClassPath>
+                        <Import-Package>
+                            !com.fasterxml.jackson.*,
+                            !org.jsoup.*,
+                            !com.vladsch.flexmark.*,
+                            com.atlassian.*;resolution:=optional,
+                            org.osgi.framework;resolution:=optional,
+                            javax.ws.rs.*;resolution:=optional,
+                            javax.servlet;resolution:=optional,
+                            javax.servlet.http;resolution:=optional,
+                            javax.annotation.*;resolution:=optional,
+                            javax.inject.*;resolution:=optional,
+                            org.slf4j;resolution:=optional,
+                            javax.crypto;resolution:=optional,
+                            javax.crypto.spec;resolution:=optional,
+                            java.*;resolution:=optional,
+                            javax.*;resolution:=optional,
+                            sun.*;resolution:=optional,
+                            com.sun.*;resolution:=optional,
+                            jdk.*;resolution:=optional,
+                            org.w3c.*;resolution:=optional,
+                            org.xml.*;resolution:=optional
+                        </Import-Package>
+                        <Export-Package>
+                            com.gitlab.sync.confluence.macro,
+                            com.gitlab.sync.confluence.gitlab,
+                            com.gitlab.sync.confluence.admin,
+                            com.gitlab.sync.confluence.comments,
+                            com.gitlab.sync.confluence.errors,
+                            com.gitlab.sync.confluence.security,
+                            com.gitlab.sync.confluence.links,
+                            com.gitlab.sync.confluence.attachments
+                        </Export-Package>
+                        <Private-Package>
+                            com.gitlab.sync.confluence.*
+                        </Private-Package>
+                        <_dsannotations>*</_dsannotations>
+                        <Include-Resource>
+                            META-INF/lib=${project.build.directory}/classes/META-INF/lib,
+                            atlassian-plugin.xml=${project.build.directory}/classes/atlassian-plugin.xml,
+                            templates=${project.build.directory}/classes/templates,
+                            META-INF/spring=${project.build.directory}/classes/META-INF/spring
+                        </Include-Resource>
+                    </instructions>
+                </configuration>
+            </plugin>
+        </plugins>
+    </build>
+</project>

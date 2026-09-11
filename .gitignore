@@ -1,0 +1,13 @@
+# build
+target/
+confluence-api-stubs/target/
+
+# IDE / OS
+.idea/
+*.iml
+.vscode/
+.DS_Store
+
+# local config / secrets
+.env
+*.env

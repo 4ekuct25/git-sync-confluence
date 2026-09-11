@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<atlassian-plugin key="com.gitlab.sync.git-sync-confluence"
+                  name="Git-Sync Confluence Plugin"
+                  plugins-version="2"
+                  xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+                  xsi:schemaLocation="atlassian-plugin https://plugin.atlassian.com/atlassian-plugin/2.0.xsd">
+
+    <plugin-info>
+        <description>Live-renders GitLab markdown documentation on Confluence pages</description>
+        <version>1.0.0</version>
+        <vendor name="Git-Sync Team" url="https://example.com/gitsync"/>
+    </plugin-info>
+
+    <!-- ==================== MACRO ==================== -->
+    <!-- TWO modules for one macro — the exact pattern Confluence 8.5 uses
+         for its own wiki-capable macros (attachments, info, expand, code,
+         column/section in WEB-INF/atlassian-bundled-plugins):
+         <macro>     (legacy, ModuleDescriptor<v2 Macro>) -> registered in the
+             v2 DefaultMacroManager, which is what the wiki-markup pipeline
+             (XhtmlMacroRendererComponent$MacroHandler) consults; without it
+             "{git-sync:...}" dies with UnknownMacroMigrationException.
+         <xhtml-macro> (AbstractModuleDescriptor<v1 Macro>) -> the macro
+             browser catalog (browse-macros is built ONLY from Xhtml/Custom/
+             User descriptor types) and the v1 XhtmlMacroManager. The wiki
+             pipeline then finds the macro in BOTH managers and emits a proper
+             <ac:structured-macro> instead of wrapping it as
+             unmigrated-wiki-markup. Different keys, same name — no registry
+             conflict (registerMacro replaces on duplicate name). -->
+    <macro key="git-sync" name="git-sync"
+           class="com.gitlab.sync.confluence.macro.GitSyncMacro">
+        <description>Renders a GitLab markdown file inline on this page</description>
+    </macro>
+    <xhtml-macro key="git-sync-xhtml" name="git-sync"
+                 class="com.gitlab.sync.confluence.macro.GitSyncMacro">
+        <description>Renders a GitLab markdown file inline on this page</description>
+        <category name="confluence-content"/>
+        <parameters>
+            <parameter name="connection" type="string"/>
+            <parameter name="path" type="string"/>
+            <parameter name="ref" type="string"/>
+        </parameters>
+    </xhtml-macro>
+
+    <!-- ==================== REST API (single module) ==================== -->
+    <rest key="gitsync-rest" path="/gitsync" version="1.0">
+        <description>Git-Sync REST API (connections, comments, attachments)</description>
+        <package>com.gitlab.sync.confluence.admin</package>
+        <package>com.gitlab.sync.confluence.comments</package>
+        <package>com.gitlab.sync.confluence.attachments</package>
+        <package>com.gitlab.sync.confluence.errors</package>
+    </rest>
+
+    <!-- ==================== LINE-COMMENTS UI (web resource) ==================== -->
+    <!-- Served on every page (atl.general); the script is a no-op unless the
+         page contains a .git-sync-content div (produced by the git-sync
+         macro), which carries data-page-id. -->
+    <web-resource key="gitsync-comments-resource"
+                  name="Git-Sync line comments UI">
+        <description>Frontend for per-line comments on git-sync rendered pages</description>
+        <resource type="download" name="comments.js"
+                  location="/templates/comments/comments.js"/>
+        <context>atl.general</context>
+    </web-resource>
+
+    <!-- ==================== ADMIN PANEL (served by a servlet) ==================== -->
+    <servlet name="Git-Sync Admin Panel" key="gitsync-admin-servlet"
+             class="com.gitlab.sync.confluence.admin.AdminServlet">
+        <description>Admin panel for managing GitLab connections</description>
+        <url-pattern>/gitlab/sync/admin</url-pattern>
+    </servlet>
+
+    <!-- The top-nav Administration dropdown on 8.5 is rendered from the
+         system.admin.global/conf-admin section (see plugins/global-admin-sections.xml
+         in the aggregate jar: Administration/Users/Manage apps live there). -->
+    <web-item key="gitsync-admin-item"
+              name="Git-Sync"
+              section="system.admin.global/conf-admin"
+              weight="30">
+        <label>Git-Sync</label>
+        <link>/plugins/servlet/gitlab/sync/admin</link>
+    </web-item>
+
+</atlassian-plugin>
