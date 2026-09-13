@@ -87,9 +87,16 @@ public final class SanitizeUtil {
         if (html == null || html.isEmpty()) {
             return "";
         }
+        // HTML comments carry no rendered content, and Jsoup's clean() does
+        // NOT drop them: a comment becomes visible escaped text wrapped in
+        // <p> ("&lt;!-- ... --&gt;"). JiHu docs start with a docs-meta
+        // comment header — strip comments (well-formed and unterminated)
+        // before sanitizing.
+        String noComments = html.replaceAll("(?s)<!--.*?-->", "");
+        noComments = noComments.replaceAll("(?s)<!--.*\\z", "");
         // Jsoup's clean() with a safelist removes disallowed tags/attributes,
         // rewrites URLs to only permitted protocols and drops on* handlers.
-        String cleaned = Jsoup.clean(html, HTML_SAFELIST);
+        String cleaned = Jsoup.clean(noComments, HTML_SAFELIST);
 
         // Defense in depth: explicitly remove any residual dangerous tags
         // (clean() should already have, but a future safelist tweak must not

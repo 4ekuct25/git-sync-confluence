@@ -7,6 +7,7 @@ import com.vladsch.flexmark.ast.Code;
 import com.gitlab.sync.confluence.security.SanitizeUtil;
 import com.vladsch.flexmark.ast.Emphasis;
 import com.vladsch.flexmark.ast.HtmlBlock;
+import com.vladsch.flexmark.ast.HtmlCommentBlock;
 import com.vladsch.flexmark.ast.HtmlInline;
 import com.vladsch.flexmark.ast.FencedCodeBlock;
 import com.vladsch.flexmark.ast.Heading;
@@ -419,6 +420,12 @@ public final class MarkdownToStorageConverter {
             footers.add(new FooterEntry(label, text, node.getStartLineNumber() + 1));
         } else if (node instanceof com.vladsch.flexmark.ext.toc.TocBlock) {
             renderToc(out, node.getStartLineNumber() + 1);
+        } else if (node instanceof HtmlCommentBlock) {
+            // Block-level HTML comment (e.g. the docs-meta header that JiHu
+            // docs carry). HtmlCommentBlock extends HtmlBlockBase, NOT
+            // HtmlBlock, so it would otherwise fall into the unknown-leaf
+            // branch below and be printed as escaped text. Comments carry
+            // no rendered content — drop them.
         } else if (node instanceof HtmlBlock) {
             // Raw HTML from the repository — untrusted: sanitize, never pass
             // through. Block-level <details> were already hoisted to expand
