@@ -6,6 +6,7 @@ confluence-api-stubs/target/
 .idea/
 *.iml
 .vscode/
+.qwen/
 .DS_Store
 
 # local config / secrets
