@@ -69,8 +69,8 @@ import java.util.regex.Pattern;
  *   <li>Emoji shortcodes ({@code :rocket:}) become the Unicode emoji
  *       character, passed through as plain text.</li>
  *   <li>Raw HTML uses the safe FR12 subset: block-level
- *       {@code <details>}/{@code <summary>} becomes the expand macro
- *       ({@code ac:structured-macro ac:name="expand"}) with the inner content
+ *       {@code <details>}/{@code <summary>} becomes a browser-native
+ *       {@code <details>}/{@code <summary>} collapsible with the inner content
  *       converted as regular markdown (hoisted from the source before
  *       parsing); {@code <br>}/{@code <sub>}/{@code <sup>} and HTML
  *       {@code <ul>}/{@code <ol>}/{@code <li>} and
@@ -255,7 +255,7 @@ public final class MarkdownToStorageConverter {
             // BEFORE parsing. A blank line inside the block terminates the
             // raw-HTML block per CommonMark, so the inner markdown cannot be
             // recovered from the flexmark AST — the block is replaced by a
-            // placeholder and rendered as the expand macro instead.
+            // placeholder and rendered as a native <details> element instead.
             Map<String, DetailsEntry> details = new HashMap<>();
             DETAILS.get().push(details);
             try {
@@ -352,10 +352,10 @@ public final class MarkdownToStorageConverter {
             }
             if (DETAILS_PLACEHOLDER.matcher(raw).matches()) {
                 // FR12 placeholder left by the <details> pre-pass: convert
-                // the hoisted body NOW (document order) and emit the expand
-                // macro. The body's AST lines are body-relative, so the line
-                // base is raised to the body's first content line in this
-                // document for the duration of the recursive conversion.
+                // the hoisted body NOW (document order) and emit the native
+                // <details> collapsible. The body's AST lines are body-relative,
+                // so the line base is raised to the body's first content line
+                // in this document for the duration of the recursive conversion.
                 java.util.Deque<Map<String, DetailsEntry>> stack = DETAILS.get();
                 Map<String, DetailsEntry> details = stack.peek();
                 DetailsEntry entry = details == null ? null : details.get(raw);
@@ -373,7 +373,7 @@ public final class MarkdownToStorageConverter {
                             LINE_BASE.set(prevBase);
                         }
                     }
-                    out.append(expandMacroXml(entry.title, rendered));
+                    out.append(detailsHtml(entry.title, rendered));
                     return;
                 }
             }
@@ -428,8 +428,8 @@ public final class MarkdownToStorageConverter {
             // no rendered content — drop them.
         } else if (node instanceof HtmlBlock) {
             // Raw HTML from the repository — untrusted: sanitize, never pass
-            // through. Block-level <details> were already hoisted to expand
-            // macros by the pre-pass; what reaches here (an inline or
+            // through. Block-level <details> were already hoisted to native
+            // <details> elements by the pre-pass; what reaches here (an inline or
             // unterminated <details>, an HTML list/table, ...) is the FR12
             // safe subset, which the sanitizer preserves, or foreign markup,
             // which is reduced to its visible text / removed.
@@ -821,7 +821,7 @@ public final class MarkdownToStorageConverter {
     }
 
     // ------------------------------------------------------------------
-    // FR12: raw-HTML subset (details/summary → expand macro, br/sub/sup)
+    // FR12: raw-HTML subset (details/summary → native <details>, br/sub/sup)
     // ------------------------------------------------------------------
 
     /** A placeholder line left in the source for a hoisted <details> block. */
@@ -831,8 +831,8 @@ public final class MarkdownToStorageConverter {
     /**
      * A hoisted {@code <details>} region awaiting conversion. The body is
      * converted LAZILY, at the placeholder's position in the block walk, so
-     * that line-sink spans are recorded in document order (an expand macro
-     * emits its inner blocks where it sits, not before the whole document).
+     * that line-sink spans are recorded in document order (the <details>
+     * element emits its inner blocks where it sits, not before the whole document).
      *
      * @param bodyBase 0-based line of the body's first content character in
      *                 the document that contained the {@code <details>}
@@ -1111,19 +1111,23 @@ public final class MarkdownToStorageConverter {
         return -1;
     }
 
-    /** The Confluence expand macro wrapping the converted block content. */
-    private static String expandMacroXml(String title, String body) {
+    /**
+     * A browser-native {@code <details>}/{@code <summary>} collapsible
+     * wrapping the converted block content. A nested
+     * {@code ac:structured-macro} (expand) is NOT usable here: a macro's
+     * output string is inserted into the view as-is and never re-parsed, so
+     * the raw ac: XML would reach the browser as unknown elements (title and
+     * body printed as plain text). The native element gives the same
+     * collapse behavior with zero client-side JS.
+     */
+    private static String detailsHtml(String title, String body) {
         StringBuilder sb = new StringBuilder();
-        sb.append("<ac:structured-macro ac:name=\"expand\" ac:schema-version=\"1\">");
+        sb.append("<details class=\"gitsync-details\">");
         if (title != null && !title.isEmpty()) {
-            sb.append("<ac:parameter ac:name=\"title\">")
-              .append(xmlEscape(title))
-              .append("</ac:parameter>");
+            sb.append("<summary>").append(xmlEscape(title)).append("</summary>");
         }
-        sb.append("<ac:rich-text-body>")
-          .append(body == null ? "" : body)
-          .append("</ac:rich-text-body>");
-        sb.append("</ac:structured-macro>");
+        sb.append(body == null ? "" : body);
+        sb.append("</details>");
         return sb.toString();
     }
 

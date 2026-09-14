@@ -27,3 +27,22 @@
     padding: 0;
     border: 0;
 }
+
+/* Native <details> collapsibles (FR12). The macro output is never re-parsed,
+   so the converter emits browser-native <details>/<summary> instead of the
+   expand macro (raw ac: XML would print as plain text). Bordered panel
+   mirrors the 8.5 expand-macro look; the native marker (▼/▶) is kept. */
+.git-sync-content details.gitsync-details {
+    margin: 10px 0;
+    border: 1px solid #dfe1e5;
+    border-radius: 3px;
+    background-color: #fbfbfb;
+}
+.git-sync-content details.gitsync-details > summary {
+    cursor: pointer;
+    font-weight: 600;
+    padding: 8px 15px;
+}
+.git-sync-content details.gitsync-details[open] > summary {
+    border-bottom: 1px solid #ececec;
+}
