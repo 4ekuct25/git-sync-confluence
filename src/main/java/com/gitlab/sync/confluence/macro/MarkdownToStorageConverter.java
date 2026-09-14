@@ -852,14 +852,17 @@ public final class MarkdownToStorageConverter {
         } else if (node instanceof HtmlInline) {
             // Raw inline HTML from the repository — untrusted. The FR12 safe
             // subset (br/sub/sup without attributes) is passed through
-            // verbatim: sanitizing the tags one by one would auto-close an
-            // opening <sub> before its content ("H<sub></sub>2O"). Everything
-            // else goes through the sanitizer: neutral tags (e.g. <mark>)
+            // verbatim. Everything else goes through sanitizeInlineTag: the
+            // per-tag sanitizer must keep the tag's open/close state — a
+            // bare sanitizeHtml auto-closes a lone opener ("<ul>" ->
+            // "<ul></ul>") and drops a lone closer ("</li>" -> ""), which
+            // strands the content between an inline <ul><li>…</li></ul>
+            // (empty list + text outside it). Neutral tags (e.g. <mark>)
             // lose their markup but keep their text, dangerous tags are
-            // removed.
+            // removed, on*/javascript: attributes are stripped.
             String raw = node.getChars() == null ? "" : node.getChars().toString().trim();
             String pass = normalizeSafeInlineTag(raw);
-            out.append(pass != null ? pass : SanitizeUtil.sanitizeHtml(raw));
+            out.append(pass != null ? pass : SanitizeUtil.sanitizeInlineTag(raw));
         } else if (node.getChars() != null && !node.getChars().isEmpty()
                 && !node.hasChildren()) {
             // Unknown inline leaf — emit escaped text defensively.

@@ -2,6 +2,7 @@ package com.gitlab.sync.confluence.security;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -172,6 +173,61 @@ public final class SanitizeUtil {
             cleaned = cleaned.replaceAll("(?is)<" + tag + "\\b[^>]*/?>", "");
         }
 
+        return cleaned;
+    }
+
+    // The closing ">" must be consumable or the pattern can never reach $
+    // (an earlier [^<>]* version matched nothing, leaving Jsoup's appended
+    // closer in place and re-stranding the inline content).
+    private static final Pattern OPEN_TAG =
+            Pattern.compile("^<([a-zA-Z][a-zA-Z0-9]*)\\b[^>]*>$");
+    private static final Pattern CLOSE_TAG =
+            Pattern.compile("^</([a-zA-Z][a-zA-Z0-9]*)\\s*>$");
+
+    /**
+     * Sanitize ONE inline HTML tag while preserving its open/close state.
+     *
+     * <p>{@link #sanitizeHtml} parses its input as a fragment, so the parser
+     * auto-closes a lone opener ({@code "<ul>" -> "<ul></ul>"}) and drops a
+     * lone closer ({@code "</li>" -> ""}). Applied per tag to an inline
+     * sequence like {@code <ul><li>x</li></ul>} that strands the content:
+     * {@code <ul></ul><li></li>x}. So the open/close state is handled here
+     * and the sanitizer does only what it is good at — filtering the tag and
+     * its attributes (on* handlers, disallowed tags, bad URL protocols).</p>
+     *
+     * <p>Safelist membership is probed, not hard-coded: a lone closer is
+     * kept only when the complete pair survives {@link #sanitizeHtml} (an
+     * orphan closer for a removed element would break the view); the closer
+     * Jsoup appends to a lone opener is stripped only when it is actually
+     * present in the cleaned output (disallowed/void tags never get one).</p>
+     *
+     * @param raw a single tag as captured by the markdown parser;
+     *            may be null/empty
+     * @return the sanitized tag with its open/close state intact; an empty
+     *         string when the tag is not on the safelist
+     */
+    public static String sanitizeInlineTag(String raw) {
+        if (raw == null || raw.isEmpty()) {
+            return "";
+        }
+        String t = raw.trim();
+        Matcher close = CLOSE_TAG.matcher(t);
+        if (close.matches()) {
+            String name = close.group(1).toLowerCase(Locale.ROOT);
+            String pair = "<" + name + "></" + name + ">";
+            return sanitizeHtml(pair).equals(pair) ? t : "";
+        }
+        String cleaned = sanitizeHtml(t);
+        Matcher open = OPEN_TAG.matcher(t);
+        if (open.matches() && !t.endsWith("/>")) {
+            String name = open.group(1).toLowerCase(Locale.ROOT);
+            String closeTag = "</" + name + ">";
+            // Jsoup auto-closed the lone opener — remove the appended
+            // closer so the following content lands INSIDE the element.
+            if (cleaned.endsWith(closeTag)) {
+                return cleaned.substring(0, cleaned.length() - closeTag.length());
+            }
+        }
         return cleaned;
     }
 
