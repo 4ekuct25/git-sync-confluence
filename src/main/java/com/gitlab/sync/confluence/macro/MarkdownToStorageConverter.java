@@ -781,11 +781,17 @@ public final class MarkdownToStorageConverter {
                    .append(xmlEscape(alt))
                    .append("\" style=\"max-width:100%\">");
                 if (!alt.isEmpty()) {
-                    // The caption is a real <p> in the rendered DOM — record it.
-                    recordNode(node, alt);
-                    out.append(
-                            "<p style=\"font-size:0.8em;color:#888;text-align:center\">"
-                                    + xmlEscape(alt) + "</p>");
+                    // The alt is kept as a HIDDEN inline anchor, not a visible
+                    // caption: GitLab shows alt text only when the image fails,
+                    // and a printed alt under every status icon was visual noise.
+                    // The span must stay in the DOM (display:none, not removed):
+                    // the frontend comment mapping (R9) matches the surrounding
+                    // block's textContent against the server-side BlockSpan, and
+                    // both include the alt — plainTextOf walks Text descendants.
+                    // No recordNode here: the containing block (p/li/td) already
+                    // records its span with the alt included.
+                    out.append("<span style=\"display:none\">")
+                       .append(xmlEscape(alt)).append("</span>");
                 }
             }
         } else if (node instanceof com.vladsch.flexmark.ext.footnotes.Footnote) {
