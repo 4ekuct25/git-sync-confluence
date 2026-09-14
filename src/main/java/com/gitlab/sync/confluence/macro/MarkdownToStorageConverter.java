@@ -556,7 +556,10 @@ public final class MarkdownToStorageConverter {
                                     List<FooterEntry> footers) {
         // Emit a raw HTML table: a macro's output is NOT re-parsed, so a
         // nested ac:structured-macro would show up as raw XML in the view.
-        out.append("<table>");
+        // The 8.5 theme styles tables only when the editor's classes are
+        // present (border/header shading key on .confluenceTable/.confluenceTh/
+        // .confluenceTd); a bare <table> renders borderless.
+        out.append("<table class=\"confluenceTable\">");
         // Walk: TableBlock -> (TableHead | TableSeparator | TableBody) -> TableRow -> TableCell.
         boolean inHead = false;
         boolean headOpen = false;
@@ -613,7 +616,11 @@ public final class MarkdownToStorageConverter {
             // The frontend selector includes <td> but not <th>.
             recordNode(cell, plainTextOf(cell));
         }
-        out.append('<').append(tag).append('>');
+        // Theme classes — see renderTable; without them the header row loses
+        // its shading and cells lose padding/borders.
+        out.append('<').append(tag)
+                .append(header ? " class=\"confluenceTh\"" : " class=\"confluenceTd\"")
+                .append('>');
         renderInlines(cell, out, krokiUrl, footers);
         out.append("</").append(tag).append('>');
     }

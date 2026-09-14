@@ -734,12 +734,24 @@
             content = host;
         }
 
-        var root = doc.createElement('div');
-        root.className = 'gs-comment-root';
-        root.setAttribute('data-page', String(pageId));
-        while (content.firstChild) {
-            root.appendChild(content.firstChild);
+        // When the passed element IS the macro wrapper (.git-sync-content),
+        // reuse it as the comment root: dropping it would lose the
+        // data-page-id/data-connection-id/data-source-path attributes and
+        // the .git-sync-content hook that the plugin CSS (gitsync.css)
+        // scopes its page styling to. A string/foreign element still gets
+        // a fresh gs-comment-root.
+        var root;
+        if (content.classList && content.classList.contains('git-sync-content')) {
+            root = content;
+            root.classList.add('gs-comment-root');
+        } else {
+            root = doc.createElement('div');
+            root.className = 'gs-comment-root';
+            while (content.firstChild) {
+                root.appendChild(content.firstChild);
+            }
         }
+        root.setAttribute('data-page', String(pageId));
 
         // Close any open popup when clicking outside of it.
         doc.addEventListener('click', function (e) {
@@ -798,12 +810,15 @@
             }
         });
 
-        // Adopt root in place of the original content.
-        if (content.parentNode) {
-            content.parentNode.insertBefore(root, content);
-            content.parentNode.removeChild(content);
-        } else {
-            doc.body.appendChild(root);
+        // Adopt root in place of the original content (a no-op when the
+        // wrapper was reused — it is already in place).
+        if (root !== content) {
+            if (content.parentNode) {
+                content.parentNode.insertBefore(root, content);
+                content.parentNode.removeChild(content);
+            } else {
+                doc.body.appendChild(root);
+            }
         }
         return root;
     }

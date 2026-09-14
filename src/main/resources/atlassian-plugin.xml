@@ -59,6 +59,8 @@
         <description>Frontend for per-line comments on git-sync rendered pages</description>
         <resource type="download" name="comments.js"
                   location="/templates/comments/comments.js"/>
+        <resource type="download" name="gitsync.css"
+                  location="/templates/gitsync.css"/>
         <context>atl.general</context>
     </web-resource>
 

@@ -1,0 +1,29 @@
+/* Git-Sync plugin: page-content styling.
+   The macro output is raw HTML — a nested ac:structured-macro (e.g. the
+   "code" macro) would render as text, so plugin <pre> code blocks never get
+   the code-macro treatment. Mirror the Confluence 8.5 code-macro look here
+   (measured on a real code macro: white bg, 1px #dfe1e5 border, 3px radius,
+   Consolas 14px/20px). */
+.git-sync-content pre {
+    display: block;
+    background-color: #ffffff;
+    border: 1px solid #dfe1e5;
+    border-radius: 3px;
+    padding: 15px;
+    overflow-x: auto;
+    font-family: Consolas, "Bitstream Vera Sans Mono", "Courier New", Courier, monospace;
+    font-size: 14px;
+    line-height: 20px;
+    color: #333333;
+}
+
+/* <pre><code> from the converter: keep the pre's own monospace look, drop
+   the theme's inline-code chrome inside the block. */
+.git-sync-content pre code {
+    font-family: inherit;
+    font-size: inherit;
+    line-height: inherit;
+    background-color: transparent;
+    padding: 0;
+    border: 0;
+}

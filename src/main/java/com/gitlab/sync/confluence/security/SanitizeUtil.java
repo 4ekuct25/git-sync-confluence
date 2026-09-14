@@ -87,6 +87,15 @@ public final class SanitizeUtil {
         safelist.addAttributes("th", "align", "colspan", "rowspan", "width");
         safelist.addAttributes("a", "rel");
 
+        // class on table cells: presentational theme hooks only
+        // (confluenceTable/confluenceTh/confluenceTd, highlight-*) — a class
+        // value cannot carry event handlers, so it is not an execution vector.
+        // Without it, raw-HTML tables in docs lose the theme's border and
+        // header shading that markdown tables (converted) keep.
+        safelist.addAttributes("table", "class");
+        safelist.addAttributes("td", "class");
+        safelist.addAttributes("th", "class");
+
         // Explicitly ban javascript: (and friends) in href/src.
         // Jsoup 1.14+ blocks these by default in clean(); the safelist
         // additionally restricts attribute protocols via addProtocols.
