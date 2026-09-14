@@ -29,7 +29,12 @@
            cell, in its padding zone) — right:-30px would spill the icon onto
            the neighbouring column, because cells have no right gutter. The
            popup is anchored to the cell (td.gs-comment-cell) and opens just
-           below it, extending right where there is room. */
+           below it, extending right where there is room. The line reserves
+           the icon's width, otherwise in a narrow cell the text runs under
+           the absolutely-positioned icon. */
+        '.gs-comment-line.gs-cell-line{' +
+            'padding-right:22px;' +
+        '}' +
         '.gs-comment-line.gs-cell-line .gs-comment-icon{' +
             'right:0;' +
         '}' +
