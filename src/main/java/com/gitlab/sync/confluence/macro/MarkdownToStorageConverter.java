@@ -206,6 +206,49 @@ public final class MarkdownToStorageConverter {
         }
     }
 
+    /**
+     * Give raw-HTML tables the same theme classes that {@link #renderTable}
+     * emits for markdown tables. The 8.5 theme styles tables only through
+     * {@code .confluenceTable}/{@code .confluenceTh}/{@code .confluenceTd}
+     * (borders, header shading, overflow-x), so a bare {@code <table>} from a
+     * raw-HTML block renders borderless — and, at its natural content width,
+     * overflows the page content area in narrow windows.
+     *
+     * @return the input unchanged when it contains no {@code <table>} or no
+     *         class was missing
+     */
+    private static String themeRawTables(String cleanHtml) {
+        if (cleanHtml == null || cleanHtml.indexOf("<table") < 0) {
+            return cleanHtml;
+        }
+        try {
+            org.jsoup.nodes.Document doc = Jsoup.parseBodyFragment(cleanHtml);
+            boolean changed = false;
+            for (Element table : doc.select("table")) {
+                if (!table.hasClass("confluenceTable")) {
+                    table.addClass("confluenceTable");
+                    changed = true;
+                }
+            }
+            for (Element th : doc.select("th")) {
+                if (!th.hasClass("confluenceTh")) {
+                    th.addClass("confluenceTh");
+                    changed = true;
+                }
+            }
+            for (Element td : doc.select("td")) {
+                if (!td.hasClass("confluenceTd")) {
+                    td.addClass("confluenceTd");
+                    changed = true;
+                }
+            }
+            return changed ? doc.body().html() : cleanHtml;
+        } catch (Exception e) {
+            LOG.debug("themeRawTables: could not parse sanitized HTML: {}", e.getMessage());
+            return cleanHtml;
+        }
+    }
+
     private static final Parser PARSER = Parser.builder()
             .extensions(List.of(
                     TablesExtension.create(),
@@ -435,6 +478,7 @@ public final class MarkdownToStorageConverter {
             // which is reduced to its visible text / removed.
             String html = node.getChars() == null ? "" : node.getChars().toString();
             String clean = SanitizeUtil.sanitizeHtml(html);
+            clean = themeRawTables(clean);
             // The FR12 subset KEEPS <li>/<td> (and friends) from raw HTML:
             // those elements reach the rendered DOM, so record them for
             // line-anchor parity (all attributed to this block's first line).

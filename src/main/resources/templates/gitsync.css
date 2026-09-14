@@ -46,3 +46,16 @@
 .git-sync-content details.gitsync-details[open] > summary {
     border-bottom: 1px solid #ececec;
 }
+
+/* Tables: the 8.5 theme keys its table styling on .confluenceTable & co and
+   sets NO width — a table renders at its natural content width and overflows
+   the page content area in narrow windows (GitLab renders the same document
+   comfortably because its tables are 100% of the container). Match GitLab:
+   every git-sync table fills the container, the auto layout distributes the
+   surplus over the columns. Borders/header shading come from the theme via
+   the classes the converter puts on all tables (renderTable for markdown
+   tables, themeRawTables for raw-HTML ones). */
+.git-sync-content table {
+    width: 100%;
+    overflow-x: auto;
+}
