@@ -25,6 +25,18 @@
     var CSS =
         '.gs-comment-root{position:relative;padding-right:34px;}' +
         '.gs-comment-line{position:relative;}' +
+        /* Table-cell lines: the icon sits INSIDE the cell (right edge of the
+           cell, in its padding zone) — right:-30px would spill the icon onto
+           the neighbouring column, because cells have no right gutter. The
+           popup is anchored to the cell (td.gs-comment-cell) and opens just
+           below it, extending right where there is room. */
+        '.gs-comment-line.gs-cell-line .gs-comment-icon{' +
+            'right:0;' +
+        '}' +
+        'td.gs-comment-cell{position:relative;}' +
+        'td.gs-comment-cell .gs-thread-popup{' +
+            'left:0;right:auto;top:100%;' +
+        '}' +
         '.gs-comment-icon{' +
             'position:absolute;right:-30px;top:50%;transform:translateY(-50%);' +
             'cursor:pointer;font-size:14px;line-height:1;' +
@@ -366,8 +378,11 @@
             openPopup = popup;
             popup.style.display = 'block';
             // Keep the popup within the vertical bounds of its wrapper.
+            // Cell lines are exempt: their popup is anchored to the <td>
+            // and the CSS (top:100%) places it below the whole cell — an
+            // inline top clamped to the content line would cover the cell.
             var line = icon.closest('.gs-comment-line');
-            if (line) {
+            if (line && !line.classList.contains('gs-cell-line')) {
                 var lineH = line.offsetHeight || 20;
                 var maxTop = lineH - Math.min(popup.offsetHeight || 100, 400) - 8;
                 var top = Math.max(2, Math.min(20, maxTop));
@@ -777,11 +792,15 @@
             // can never be created from the UI.
             Array.prototype.forEach.call(blocks, function (block, i) {
                 var wrapper = doc.createElement('div');
-                wrapper.className = 'gs-comment-line';
                 // A <td> block must not receive a wrapper <div> inside the
                 // <tr> (invalid table DOM breaks the layout); wrap the cell
-                // content inside the <td> instead.
-                if (block.parentNode && block.parentNode.tagName === 'TR') {
+                // content inside the <td> instead. gs-cell-line: cells have
+                // no 34px right gutter of their own, so the icon must sit
+                // INSIDE the cell (right:0), not 30px past its edge where
+                // it would spill onto the neighbouring column.
+                var isCell = !!(block.parentNode && block.parentNode.tagName === 'TR');
+                wrapper.className = isCell ? 'gs-comment-line gs-cell-line' : 'gs-comment-line';
+                if (isCell) {
                     while (block.firstChild) {
                         wrapper.appendChild(block.firstChild);
                     }
@@ -794,7 +813,16 @@
                 var lineText = plainTextOf(block);
                 var built = buildLine(pageId, src, i, lineText, comments);
                 wrapper.appendChild(built.icon);
-                wrapper.appendChild(built.popup);
+                if (isCell) {
+                    // Popup is anchored to the CELL (not the content wrapper):
+                    // it opens just below the whole cell — the wrapper's
+                    // height is only the content line, so a wrapper-anchored
+                    // popup would cover the cell itself.
+                    block.classList.add('gs-comment-cell');
+                    block.appendChild(built.popup);
+                } else {
+                    wrapper.appendChild(built.popup);
+                }
             });
 
             // FR09: comments whose fragment was deleted from / fully
