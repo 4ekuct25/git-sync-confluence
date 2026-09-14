@@ -1,6 +1,12 @@
 package com.gitlab.sync.confluence.security;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
 import org.jsoup.Jsoup;
+import org.jsoup.nodes.Entities;
 import org.jsoup.safety.Safelist;
 
 /**
@@ -41,6 +47,25 @@ public final class SanitizeUtil {
             "script", "iframe", "object", "embed", "form", "applet",
             "style", "noscript", "base", "meta", "link"
     };
+
+    /**
+     * Placeholder scheme that keeps scheme-less (relative) URLs alive through
+     * {@link Jsoup#clean}. Jsoup drops every href/src that carries no
+     * protocol (verified against jsoup 1.17.2: {@code ../../assets/x.svg}
+     * and {@code #anchor} are stripped even without an explicit protocol
+     * allowlist and even with {@code preserveRelativeLinks(true)}), but
+     * exactly those values are what GitLabLinkResolver rewrites into
+     * resolvable attachment-proxy / blob URLs AFTER sanitization. During
+     * clean() the value is masked with a placeholder on the allowed https
+     * protocol and restored (escaped) afterwards. Values that carry a
+     * protocol — including protocol-relative {@code //host/x} — are left
+     * to Jsoup.
+     */
+    private static final String REL_URL_MARKER = "https://gitsync-relative.invalid/rel";
+    private static final Pattern URL_ATTR_PATTERN =
+            Pattern.compile("(?i)\\b(href|src)\\s*=\\s*(\"[^\"]*\"|'[^']*')");
+    private static final Pattern URL_SCHEME_PATTERN =
+            Pattern.compile("^[A-Za-z][A-Za-z0-9+.-]*:");
 
     private SanitizeUtil() {}
 
@@ -96,7 +121,38 @@ public final class SanitizeUtil {
         noComments = noComments.replaceAll("(?s)<!--.*\\z", "");
         // Jsoup's clean() with a safelist removes disallowed tags/attributes,
         // rewrites URLs to only permitted protocols and drops on* handlers.
-        String cleaned = Jsoup.clean(noComments, HTML_SAFELIST);
+        // Scheme-less (relative) href/src would be dropped by that URL check
+        // and never reach the link resolver — mask them for the duration of
+        // clean() (see REL_URL_MARKER).
+        List<String> relativeValues = new ArrayList<>();
+        String masked = URL_ATTR_PATTERN.matcher(noComments).replaceAll(match -> {
+            String quoted = match.group(2);
+            String value = quoted.substring(1, quoted.length() - 1);
+            // find(), NOT matches(): the pattern is ^-anchored, so find()
+            // tests "value starts with a scheme" while matches() would
+            // require the whole value to be just "scheme:" and would mask
+            // payloads like javascript:alert(1) as if they were relative
+            // URLs (XSS via mask/restore).
+            if (URL_SCHEME_PATTERN.matcher(value).find() || value.startsWith("//")) {
+                return Matcher.quoteReplacement(match.group());
+            }
+            String replacement = match.group(1) + "=\""
+                    + REL_URL_MARKER + relativeValues.size() + "\"";
+            relativeValues.add(Entities.unescape(value));
+            return Matcher.quoteReplacement(replacement);
+        });
+        String cleaned = Jsoup.clean(masked, HTML_SAFELIST);
+        if (!relativeValues.isEmpty()) {
+            cleaned = Pattern.compile(Pattern.quote(REL_URL_MARKER) + "(\\d+)")
+                    .matcher(cleaned)
+                    .replaceAll(match -> {
+                        int idx = Integer.parseInt(match.group(1));
+                        return idx < relativeValues.size()
+                                ? Matcher.quoteReplacement(
+                                        escapeAttrValue(relativeValues.get(idx)))
+                                : Matcher.quoteReplacement(match.group());
+                    });
+        }
 
         // Defense in depth: explicitly remove any residual dangerous tags
         // (clean() should already have, but a future safelist tweak must not
@@ -108,6 +164,23 @@ public final class SanitizeUtil {
         }
 
         return cleaned;
+    }
+
+    /**
+     * Escape a restored URL value for attribute position. The value is
+     * entity-decoded at capture time (see {@link Entities#unescape}), so one
+     * escaping pass is correct; a quote character cannot occur (the capture
+     * regex cannot match a value containing its own delimiter).
+     *
+     * <p>Note: a path with special characters (e.g. {@code &}) ends up
+     * entity-encoded in the final HTML. GitLabLinkResolver is regex-based and
+     * not entity-aware, so it may fail to resolve such a link — it then stays
+     * relative (broken in the browser) rather than becoming an injection.
+     */
+    private static String escapeAttrValue(String value) {
+        return value.replace("&", "&amp;")
+                    .replace("<", "&lt;")
+                    .replace(">", "&gt;");
     }
 
     /**
