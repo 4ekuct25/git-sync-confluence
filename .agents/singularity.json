@@ -1,0 +1,18 @@
+{
+  "projectId": "P-c6847f83-615b-481a-a898-af9daf4a8068",
+  "projectTitle": "git_confluence",
+  "columns": {
+    "todo": "KS-P-c6847f83-615b-481a-a898-af9daf4a8068-TODO",
+    "wip": "KS-P-c6847f83-615b-481a-a898-af9daf4a8068-IN-PROGRESS",
+    "review": "KS-024e6b04-dcc8-4876-a2c4-97741dab4bc9",
+    "done": "KS-P-c6847f83-615b-481a-a898-af9daf4a8068-DONE",
+    "blocked": "KS-0bb0369e-4a52-4354-ad76-b73c4c1fbb27"
+  },
+  "columnNames": {
+    "todo": "К работе",
+    "wip": "В работе",
+    "review": "На проверке",
+    "done": "Готово",
+    "blocked": "Заблокировано"
+  }
+}
