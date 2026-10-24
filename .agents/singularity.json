@@ -4,9 +4,9 @@
   "columns": {
     "todo": "KS-P-c6847f83-615b-481a-a898-af9daf4a8068-TODO",
     "wip": "KS-P-c6847f83-615b-481a-a898-af9daf4a8068-IN-PROGRESS",
-    "review": "KS-024e6b04-dcc8-4876-a2c4-97741dab4bc9",
     "done": "KS-P-c6847f83-615b-481a-a898-af9daf4a8068-DONE",
-    "blocked": "KS-0bb0369e-4a52-4354-ad76-b73c4c1fbb27"
+    "review": "KS-a0c2ef52-6d1f-4814-89e6-ff7cb9eb51f4",
+    "blocked": "KS-8a931587-2675-465a-8c7c-96254083d902"
   },
   "columnNames": {
     "todo": "К работе",
