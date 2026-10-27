@@ -59,3 +59,32 @@
     width: 100%;
     overflow-x: auto;
 }
+
+/* Macro dialog autocomplete (suggest.js): the dropdown is fixed-positioned
+   on <body> — the dialog content area has fixed-height scroll panes that
+   would clip an in-flow list. */
+.gitsync-suggest {
+    position: fixed;
+    z-index: 100000;
+    background-color: #ffffff;
+    border: 1px solid #b6c1cc;
+    border-radius: 4px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+    max-height: 240px;
+    overflow-y: auto;
+    font-family: -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+    font-size: 13px;
+    line-height: 1.4;
+    color: #222222;
+}
+.gitsync-suggest-item {
+    padding: 4px 10px;
+    cursor: pointer;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.gitsync-suggest-item.gitsync-suggest-active,
+.gitsync-suggest-item:hover {
+    background-color: #e5f0f8;
+}

@@ -61,6 +61,8 @@
                   location="/templates/comments/comments.js"/>
         <resource type="download" name="gitsync.css"
                   location="/templates/gitsync.css"/>
+        <resource type="download" name="suggest.js"
+                  location="/templates/suggest/suggest.js"/>
         <context>atl.general</context>
     </web-resource>
 

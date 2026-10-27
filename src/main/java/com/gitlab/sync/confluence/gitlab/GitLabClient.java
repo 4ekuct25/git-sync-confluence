@@ -306,6 +306,49 @@ public class GitLabClient {
                 + "/repository/commits/" + sha), null);
     }
 
+    // ------------------------------------------------------------------
+    //  Suggest API (autocomplete for the macro dialog fields)
+    // ------------------------------------------------------------------
+
+    /**
+     * Branch names (GET /repository/branches?search=). GitLab already
+     * filters by the search substring; an empty search returns the first
+     * {@code per_page} branches.
+     */
+    public JsonNode listBranches(String search, int perPage) throws IOException {
+        String url = apiUrl("/projects/" + connection.getProjectId()
+                + "/repository/branches") + "?per_page=" + perPage;
+        if (search != null && !search.isBlank()) {
+            url += "&search=" + UriComponentEncoder.encode(search.trim());
+        }
+        return doApi("GET", url, null);
+    }
+
+    /** Tag names (GET /repository/tags?search=). */
+    public JsonNode listTags(String search, int perPage) throws IOException {
+        String url = apiUrl("/projects/" + connection.getProjectId()
+                + "/repository/tags") + "?per_page=" + perPage;
+        if (search != null && !search.isBlank()) {
+            url += "&search=" + UriComponentEncoder.encode(search.trim());
+        }
+        return doApi("GET", url, null);
+    }
+
+    /**
+     * Entries of a directory (GET /repository/tree?path=&ref=). Each entry
+     * carries {@code name}, {@code type} ("blob" | "tree") and {@code path}.
+     */
+    public JsonNode listTree(String path, String ref, int perPage) throws IOException {
+        String url = apiUrl("/projects/" + connection.getProjectId()
+                + "/repository/tree")
+                + "?ref=" + UriComponentEncoder.encode(ref)
+                + "&per_page=" + perPage;
+        if (path != null && !path.isEmpty()) {
+            url += "&path=" + UriComponentEncoder.encode(path);
+        }
+        return doApi("GET", url, null);
+    }
+
     /** The commit's diff entries (GET /repository/commits/:sha/diff — singular;
      *  the plural form is not a GitLab route and 404s). */
     public List<JsonNode> getCommitDiffs(String sha) throws IOException {
